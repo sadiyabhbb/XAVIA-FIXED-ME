@@ -1,6 +1,6 @@
 const langData = {
   "en_US": {
-    "prefix": "{botname} 𝚙𝚛𝚎𝚏𝚒𝚡 𝚒𝚜: {prefix}"
+    "prefix": "{botname} Prefix is: {prefix}"
   }
 };
 
