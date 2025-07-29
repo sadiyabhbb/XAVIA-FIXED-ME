@@ -7,7 +7,7 @@ const config = {
   usage: "[API_URL]",
   cooldown: 5,
   permissions: [2],
-  credits: ".",
+  credits: "ArYAN",
 };
 
 async function onCall({ message, args }) {
