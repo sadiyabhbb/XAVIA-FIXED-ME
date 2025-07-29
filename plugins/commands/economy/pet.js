@@ -8,7 +8,7 @@ const config = {
   description: "Buy, feed, and sell your virtual pet",
   usage: "<buy/feed/check/sell>",
   cooldown: 6,
-  credits: "Gauxy"
+  credits: "ArYAN"
 };
 
 const langData = {
