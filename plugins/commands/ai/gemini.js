@@ -4,7 +4,7 @@ const config = {
   name: "gemini",
   version: "2.0",
   permissions: 0,
-  credits: "Aryan",
+  credits: "ArYAN",
   description: "Ask anything to Gemini AI",
   commandCategory: "ai",
   usages: "[question]",
