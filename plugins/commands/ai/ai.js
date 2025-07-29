@@ -7,7 +7,7 @@ const config = {
   usage: "[question]",
   cooldown: 10,
   description: "Interact with Aryan's AI",
-  credits: "Aryan"
+  credits: "ArYAN"
 };
 
 async function onCall({ message: m, args: ar }) {
