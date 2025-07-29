@@ -23,5 +23,5 @@
 }
 ```
 
-💡 Replace `!` with your prefix  
+💡 Replace `×` with your prefix  
 💡 Use valid fbstate in appstate.json 
