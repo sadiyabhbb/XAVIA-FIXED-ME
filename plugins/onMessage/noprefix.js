@@ -1,4 +1,4 @@
-// coded by @renzmansueto. 
+// coded by @aryannix. 
 
 const noPrefix = ["ai", "gemini"] //names that does not need a prefix
 
