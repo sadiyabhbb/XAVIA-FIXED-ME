@@ -46,7 +46,7 @@
     "node-cron": "^3.0.2",
     "pastebin-js": "",
     "python-shell": "^5.0.0",
-    "rapido-fca": "latest",
+    "aryan-nix-fca": "latest",
     "ryuu-fca-api": "^3.2.5",
     "sanitize-html": "",
     "semver": "^7.3.8",
