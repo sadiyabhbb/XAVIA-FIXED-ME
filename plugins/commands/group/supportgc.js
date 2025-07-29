@@ -7,7 +7,7 @@ const config = {
   permissions: [0, 1, 2],
   isAbsolute: false,
   isHidden: false,
-  credits: "Edinst",
+  credits: "ArYAN",
 };
 
 async function onCall({ message }) {
