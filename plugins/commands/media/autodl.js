@@ -20,7 +20,7 @@ export const config = {
 
 export async function onStart() {}
 
-export async function onChat({ api, event }) {
+export async function onCall({ api, event }) {
   const body = event.body || "";
 
   const supportedUrls = [
