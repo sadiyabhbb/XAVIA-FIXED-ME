@@ -1,90 +1,94 @@
-const axios = require("axios");
-const fs = require("fs-extra");
-const path = require("path");
+import axios from "axios";
+import fs from "fs-extra";
+import path from "path";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
 
-module.exports = {
-  config: {
-    name: "autodl",
-    version: "2.0",
-    author: "Dipto",
-    credits: "Fixed by ChatGPT for Xavia Bot",
-    description: "Auto download from TikTok, Facebook, YouTube, Instagram and more.",
-    category: "media",
-    usages: "[url]",
-    cooldowns: 5,
-  },
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
-  onStart: async function () {},
-
-  onChat: async function ({ message, event, api }) {
-    const body = event.body || "";
-
-    const isUrl = (url) =>
-      url.startsWith("https://vt.tiktok.com") ||
-      url.startsWith("https://www.tiktok.com/") ||
-      url.startsWith("https://vm.tiktok.com") ||
-      url.startsWith("https://www.facebook.com") ||
-      url.startsWith("https://fb.watch") ||
-      url.startsWith("https://www.instagram.com/") ||
-      url.startsWith("https://www.instagram.com/p/") ||
-      url.startsWith("https://youtu.be/") ||
-      url.startsWith("https://youtube.com/") ||
-      url.startsWith("https://twitter.com/") ||
-      url.startsWith("https://x.com/") ||
-      url.startsWith("https://pin.it/");
-
-    if (!isUrl(body)) return;
-
-    try {
-      api.setMessageReaction("⌛", event.messageID, true);
-      const waitMsg = await message.reply("⏳ Downloading your media, please wait...");
-
-      const baseApi = (
-        await axios.get(
-          "https://raw.githubusercontent.com/Blankid018/D1PT0/main/baseApiUrl.json"
-        )
-      ).data.api;
-
-      const res = await axios.get(`${baseApi}/alldl?url=${encodeURIComponent(body)}`);
-      const data = res.data;
-
-      let ext = ".mp4";
-      let caption = data.cp || "📥 Here's your video";
-
-      if (data.result.includes(".jpg")) {
-        ext = ".jpg";
-        caption = "📸 Here's your image";
-      } else if (data.result.includes(".png")) {
-        ext = ".png";
-        caption = "📸 Here's your image";
-      } else if (data.result.includes(".jpeg")) {
-        ext = ".jpeg";
-        caption = "📸 Here's your image";
-      }
-
-      const filePath = path.join(__dirname, "cache", `autodl${ext}`);
-      const file = await axios.get(data.result, { responseType: "arraybuffer" });
-
-      fs.writeFileSync(filePath, Buffer.from(file.data, "binary"));
-
-      const shortUrl = (
-        await axios.get(`https://tinyurl.com/api-create.php?url=${data.result}`)
-      ).data;
-
-      api.setMessageReaction("✅", event.messageID, true);
-      api.unsendMessage(waitMsg.messageID);
-
-      await message.reply(
-        {
-          body: `${caption}\n🔗 Link: ${shortUrl}`,
-          attachment: fs.createReadStream(filePath),
-        },
-        () => fs.unlinkSync(filePath)
-      );
-    } catch (err) {
-      console.error(err);
-      api.setMessageReaction("❌", event.messageID, true);
-      message.reply("❌ Failed to download.\nError: " + err.message);
-    }
-  },
+export const config = {
+  name: "autodl",
+  version: "2.0",
+  author: "Dipto",
+  credits: "Fixed by ChatGPT",
+  description: "Download video/image from TikTok, Facebook, YouTube, Instagram and more.",
+  category: "media",
+  usages: "[url]",
+  cooldowns: 5,
 };
+
+export async function onStart() {}
+
+export async function onChat({ api, event }) {
+  const body = event.body || "";
+
+  const supportedUrls = [
+    "https://vt.tiktok.com",
+    "https://www.tiktok.com/",
+    "https://vm.tiktok.com",
+    "https://www.facebook.com",
+    "https://fb.watch",
+    "https://www.instagram.com/",
+    "https://www.instagram.com/p/",
+    "https://youtu.be/",
+    "https://youtube.com/",
+    "https://x.com/",
+    "https://twitter.com/",
+    "https://pin.it/",
+  ];
+
+  if (!supportedUrls.some((u) => body.startsWith(u))) return;
+
+  try {
+    api.setMessageReaction("⌛", event.messageID, true);
+    const waiting = await api.sendMessage("📥 Downloading your media...", event.threadID);
+
+    const apiUrlRaw = await axios.get(
+      "https://raw.githubusercontent.com/Blankid018/D1PT0/main/baseApiUrl.json"
+    );
+    const apiBase = apiUrlRaw.data.api;
+
+    const res = await axios.get(`${apiBase}/alldl?url=${encodeURIComponent(body)}`);
+    const d = res.data;
+
+    if (!d || !d.result) {
+      throw new Error("❌ Could not retrieve media URL.");
+    }
+
+    const fileUrl = d.result;
+    const ext = fileUrl.match(/\.(jpg|jpeg|png|mp4)/)?.[0] || ".mp4";
+    const caption =
+      ext.includes("jpg") || ext.includes("png") || ext.includes("jpeg")
+        ? "📸 Here's your image"
+        : d.cp || "📽️ Here's your video";
+
+    const filePath = path.join(__dirname, "cache", `autodl${ext}`);
+    const fileRes = await axios.get(fileUrl, { responseType: "arraybuffer" });
+    fs.writeFileSync(filePath, Buffer.from(fileRes.data));
+
+    const shortUrl = (
+      await axios.get(`https://tinyurl.com/api-create.php?url=${fileUrl}`)
+    ).data;
+
+    api.setMessageReaction("✅", event.messageID, true);
+    api.unsendMessage(waiting.messageID);
+
+    await api.sendMessage(
+      {
+        body: `${caption}\n🔗 Link: ${shortUrl}`,
+        attachment: fs.createReadStream(filePath),
+      },
+      event.threadID,
+      () => fs.unlinkSync(filePath)
+    );
+  } catch (err) {
+    console.error("Download Error:", err.message);
+    api.setMessageReaction("❌", event.messageID, true);
+    api.sendMessage(
+      `❌ Failed to download media.\n📛 Error: ${err.message}`,
+      event.threadID,
+      event.messageID
+    );
+  }
+}
