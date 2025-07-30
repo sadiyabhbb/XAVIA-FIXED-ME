@@ -9,7 +9,7 @@ const __dirname = dirname(__filename);
 
 export const config = {
   name: "autodl",
-  version: "2.0",
+  version: "2.1",
   author: "Dipto",
   credits: "Fixed by ChatGPT",
   description: "Download video/image from TikTok, Facebook, YouTube, Instagram and more.",
@@ -44,12 +44,10 @@ export async function onCall({ api, event }) {
     api.setMessageReaction("⌛", event.messageID, true);
     const waiting = await api.sendMessage("📥 Downloading your media...", event.threadID);
 
-    const apiUrlRaw = await axios.get(
-      "https://raw.githubusercontent.com/Blankid018/D1PT0/main/baseApiUrl.json"
+    const res = await axios.get(
+      `https://nayan-video-downloader.vercel.app/alldown?url=${encodeURIComponent(body)}`
     );
-    const apiBase = apiUrlRaw.data.api;
 
-    const res = await axios.get(`${apiBase}/alldl?url=${encodeURIComponent(body)}`);
     const d = res.data;
 
     if (!d || !d.result) {
