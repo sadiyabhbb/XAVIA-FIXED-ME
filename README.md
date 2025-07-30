@@ -1,6 +1,6 @@
 
 # XaviaBot  
-**v2.1.4** | **By**: RFS-ADRENO | **Modded by**: Aryan 🎀 
+**v0.0.8** | **By**: RFS-ADRENO | **Modded by**: Aryan 🎀 
 
 🔗 **Sources**:  
 - [Original](https://github.com/XaviaTeam/XaviaBot)  
