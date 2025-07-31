@@ -115,8 +115,27 @@ export async function onCall({ message, args, event, users, reply }) {
   }
 }
 
-// --- Utility Functions ---
+export async function onChat({ event, message, users, reply }) {
+  const content = message.body.toLowerCase();
+  if (content === "bot" || content === "mim") {
+    const name = await users.getName(event.senderID);
+    const responses = [
+      "আহ শুনা আমার তোমার অলিতে গলিতে উম্মাহ😇😘",
+      "কি গো সোনা আমাকে ডাকছ কেনো",
+      "বার বার আমাকে ডাকস কেন😡",
+      "আহ শোনা আমার আমাকে এতো ডাক্তাছো কেনো আসো বুকে আশো🥱",
+      "হুম জান তোমার অইখানে উম্মমাহ😷😘",
+      "আসসালামু আলাইকুম বলেন আপনার জন্য কি করতে পারি",
+      "আমাকে এতো না ডেকে বস নয়নকে একটা গফ দে 🙄",
+      "jang hanga korba",
+      "jang bal falaba🙂"
+    ];
+    const rand = responses[Math.floor(Math.random() * responses.length)];
+    return reply(`${name}, ${rand}`);
+  }
+}
 
+// Utility
 function loadTextStyles() {
   const filePath = path.join(__dirname, 'system', 'textStyles.json');
   try {
