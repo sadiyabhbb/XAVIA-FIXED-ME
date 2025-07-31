@@ -4,87 +4,60 @@ const langData = {
         "download.tiktok.error": "Failed to download TikTok video",
         "download.facebook.success": "{title}",
         "download.facebook.error": "Failed to download Facebook video",
-        "download.youtube.success": "{title}",
-        "download.youtube.error": "Failed to download YouTube video. (No direct download API provided)",
-        "download.instagram.success": "{title}",
-        "download.instagram.error": "Failed to download Instagram video"
+        "download.instagram.success": "Instagram video downloaded\nTitle: {title}",
+        "download.instagram.error": "Failed to download Instagram video",
+        "download.youtube.success": "YouTube video downloaded\nTitle: {title}",
+        "download.youtube.error": "Failed to download YouTube video"
     },
     "vi_VN": {
         "download.tiktok.success": "Tải TikTok thành công\nTiêu đề: {title}\nTác giả: {author}",
         "download.tiktok.error": "Không thể tải video TikTok",
         "download.facebook.success": "Tải Facebook thành công\nTiêu đề: {title}",
         "download.facebook.error": "Không thể tải video Facebook",
-        "download.youtube.success": "Tải YouTube thành công\nTiêu đề: {title}",
-        "download.youtube.error": "Không thể tải video YouTube. (Không có API tải trực tiếp được cung cấp)",
-        "download.instagram.success": "Tải Instagram thành công\nTiêu đề: {title}",
-        "download.instagram.error": "Không thể tải video Instagram"
+        "download.instagram.success": "Tải video Instagram thành công\nTiêu đề: {title}",
+        "download.instagram.error": "Không thể tải video Instagram",
+        "download.youtube.success": "Tải video YouTube thành công\nTiêu đề: {title}",
+        "download.youtube.error": "Không thể tải video YouTube"
     }
 };
 
 import axios from 'axios';
 
-async function downloadYouTube(url) {
-    console.error("Attempted to download YouTube video, but no dynamic API provided.");
-    return {
-        success: false
-    };
-}
-
-async function downloadFacebook(url) {
+async function downloadTikTok(url) {
     try {
-        const encodedUrl = encodeURIComponent(url);
-        const response = await axios.get(`https://api-aryan-xyz.vercel.app/fbdl?url=${encodedUrl}&apikey=ArYAN`);
-
-        if (!response.data || !response.data.videoUrl) {
-            throw new Error("Invalid Facebook API response or missing video URL.");
-        }
-
-        const videoResponse = await axios({
-            method: 'get',
-            url: response.data.videoUrl,
-            responseType: 'stream'
+        const response = await axios.get('https://tikwm.com/api/', {
+            params: { url }
         });
+
+        if (response.data.code !== 0) {
+            throw new Error();
+        }
 
         return {
             success: true,
-            data: {
-                stream: videoResponse.data,
-                title: response.data.title || "Facebook Video"
-            }
+            data: response.data.data
         };
     } catch (error) {
-        console.error("Facebook download error:", error);
         return {
             success: false
         };
     }
 }
 
-async function downloadTikTok(url) {
+async function downloadFacebook(url) {
     try {
         const encodedUrl = encodeURIComponent(url);
-        const response = await axios.get(`https://api-aryan-xyz.vercel.app/tikdl?url=${encodedUrl}&apikey=ArYAN`);
+        const response = await axios.get(`https://aryan-nix-apis.vercel.app/api/fbdl?url=${encodedUrl}`);
 
         if (!response.data || !response.data.url) {
-            throw new Error("Invalid TikTok API response or missing video URL.");
+            throw new Error();
         }
-
-        const videoResponse = await axios({
-            method: 'get',
-            url: response.data.url,
-            responseType: 'stream'
-        });
 
         return {
             success: true,
-            data: {
-                stream: videoResponse.data,
-                title: response.data.title,
-                author: response.data.author
-            }
+            data: response.data
         };
     } catch (error) {
-        console.error("TikTok download error:", error);
         return {
             success: false
         };
@@ -94,27 +67,37 @@ async function downloadTikTok(url) {
 async function downloadInstagram(url) {
     try {
         const encodedUrl = encodeURIComponent(url);
-        const response = await axios.get(`https://api-aryan-xyz.vercel.app/igdl?url=${encodedUrl}&apikey=ArYAN`);
+        const response = await axios.get(`https://aryan-nix-apis.vercel.app/api/igdl?url=${encodedUrl}`);
 
-        if (!response.data || !response.data.result || !response.data.result.video_url) {
-            throw new Error("Invalid Instagram API response or missing video URL.");
+        if (!response.data || !response.data.url) {
+            throw new Error();
         }
-
-        const videoResponse = await axios({
-            method: 'get',
-            url: response.data.result.video_url,
-            responseType: 'stream'
-        });
 
         return {
             success: true,
-            data: {
-                stream: videoResponse.data,
-                title: response.data.result.title || "Instagram Video"
-            }
+            data: response.data
         };
     } catch (error) {
-        console.error("Instagram download error:", error);
+        return {
+            success: false
+        };
+    }
+}
+
+async function downloadYouTube(url) {
+    try {
+        const encodedUrl = encodeURIComponent(url);
+        const response = await axios.get(`https://aryan-nix-apis.vercel.app/api/ytdl?url=${encodedUrl}`);
+
+        if (!response.data || !response.data.url) {
+            throw new Error();
+        }
+
+        return {
+            success: true,
+            data: response.data
+        };
+    } catch (error) {
         return {
             success: false
         };
@@ -131,14 +114,14 @@ function isFacebookUrl(url) {
     return facebookRegex.test(url);
 }
 
+function isInstagramUrl(url) {
+    const instagramRegex = /^(https?:\/\/)?(www\.)?instagram\.com\/(p|reel)\/[^\s]+$/;
+    return instagramRegex.test(url);
+}
+
 function isYouTubeUrl(url) {
     const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/[^\s]+$/;
     return youtubeRegex.test(url);
-}
-
-function isInstagramUrl(url) {
-    const instagramRegex = /^(https?:\/\/)?(www\.)?(instagram\.com)\/[^\s]+$/;
-    return instagramRegex.test(url);
 }
 
 async function onCall({ message, getLang, data }) {
@@ -161,69 +144,123 @@ async function onCall({ message, getLang, data }) {
         return;
     }
 
-    let result = null;
-    let successKey = null;
-    let errorKey = null;
-    let title = null;
-    let stream = null;
-    let author = null;
-
     if (isTikTokUrl(url)) {
         message.react("⏳");
-        result = await downloadTikTok(url);
-        successKey = "download.tiktok.success";
-        errorKey = "download.tiktok.error";
+        const result = await downloadTikTok(url);
+
         if (result.success) {
-            title = result.data.title;
-            author = result.data.author?.nickname;
-            stream = result.data.stream;
+            const videoData = result.data;
+
+            try {
+                const stream = await axios({
+                    method: 'get',
+                    url: videoData.play,
+                    responseType: 'stream'
+                });
+
+                await message.reply({
+                    body: getLang("download.tiktok.success", {
+                        title: videoData.title,
+                        author: videoData.author.nickname
+                    }),
+                    attachment: stream.data
+                });
+                message.react("✅");
+            } catch (error) {
+                message.react("❌");
+                return;
+            }
+        } else {
+            message.react("❌");
+            return;
         }
     } else if (isFacebookUrl(url)) {
         message.react("⏳");
-        result = await downloadFacebook(url);
-        successKey = "download.facebook.success";
-        errorKey = "download.facebook.error";
+        const result = await downloadFacebook(url);
+
         if (result.success) {
-            title = result.data.title;
-            stream = result.data.stream;
+            const videoData = result.data;
+
+            try {
+                const stream = await axios({
+                    method: 'get',
+                    url: videoData.url,
+                    responseType: 'stream'
+                });
+
+                await message.reply({
+                    body: getLang("download.facebook.success", {
+                        title: videoData.title || "Facebook Video"
+                    }),
+                    attachment: stream.data
+                });
+                message.react("✅");
+            } catch (error) {
+                message.react("❌");
+                return;
+            }
+        } else {
+            message.react("❌");
+            return;
         }
     } else if (isInstagramUrl(url)) {
         message.react("⏳");
-        result = await downloadInstagram(url);
-        successKey = "download.instagram.success";
-        errorKey = "download.instagram.error";
+        const result = await downloadInstagram(url);
+
         if (result.success) {
-            title = result.data.title;
-            stream = result.data.stream;
+            const videoData = result.data;
+
+            try {
+                const stream = await axios({
+                    method: 'get',
+                    url: videoData.url,
+                    responseType: 'stream'
+                });
+
+                await message.reply({
+                    body: getLang("download.instagram.success", {
+                        title: videoData.title || "Instagram Video"
+                    }),
+                    attachment: stream.data
+                });
+                message.react("✅");
+            } catch (error) {
+                message.react("❌");
+                return;
+            }
+        } else {
+            message.react("❌");
+            return;
         }
     } else if (isYouTubeUrl(url)) {
         message.react("⏳");
-        result = await downloadYouTube(url);
-        successKey = "download.youtube.success";
-        errorKey = "download.youtube.error";
-        if (result.success) {
-            title = result.data.title;
-            stream = result.data.stream;
-        }
-    } else {
-        return;
-    }
+        const result = await downloadYouTube(url);
 
-    if (result && result.success && stream) {
-        try {
-            await message.reply({
-                body: getLang(successKey, { title: title, author: author }),
-                attachment: stream
-            });
-            message.react("✅");
-        } catch (error) {
-            console.error("Error sending message with attachment:", error);
+        if (result.success) {
+            const videoData = result.data;
+
+            try {
+                const stream = await axios({
+                    method: 'get',
+                    url: videoData.url,
+                    responseType: 'stream'
+                });
+
+                await message.reply({
+                    body: getLang("download.youtube.success", {
+                        title: videoData.title || "YouTube Video"
+                    }),
+                    attachment: stream.data
+                });
+                message.react("✅");
+            } catch (error) {
+                message.react("❌");
+                return;
+            }
+        } else {
             message.react("❌");
-            await message.reply(getLang(errorKey));
+            return;
         }
-    } else if (result && !result.success) {
-        message.react("❌");
-        await message.reply(getLang(errorKey));
     }
 
     return;
