@@ -54,7 +54,7 @@ async function onCall({ message, getLang }) {
         const imageResponse = await axios.get(resultUrl, { responseType: 'arraybuffer' });
 
         await fs.ensureDir(pogi);
-        const filePath = path.join(pogi, 'remini-enhanced.png');
+        const filePath = path.join(pogi, 'upscaled.png');
         await fs.outputFile(filePath, Buffer.from(imageResponse.data));
 
         await message.reply({
