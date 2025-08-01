@@ -17,7 +17,7 @@ const config = {
   usages: "<song name>",
   cooldown: 5,
   permissions: 0,
-  commandCategory: "music"
+  commandCategory: "music",
 };
 
 function sanitizeFileName(name) {
@@ -40,7 +40,9 @@ async function onCall({ message, args }) {
 
     const apiUrl = `https://xyz-nix.vercel.app/aryan/youtube?id=${video.videoId}&type=audio&apikey=itzaryan`;
 
-    const res = await axios.get(apiUrl);
+    const res = await axios.get(apiUrl, { timeout: 10000 });
+
+    console.log("API Response:", res.data);
 
     const downloadUrl = res.data?.downloadUrl;
     if (!downloadUrl) {
@@ -53,18 +55,30 @@ async function onCall({ message, args }) {
     const fileName = sanitizeFileName(`${video.title}.mp3`);
     const filePath = path.join(cachePath, fileName);
 
-    const audio = await axios.get(downloadUrl, { responseType: "arraybuffer" });
-    await fs.writeFile(filePath, audio.data);
+    const writer = fs.createWriteStream(filePath);
+    const response = await axios({
+      url: downloadUrl,
+      method: "GET",
+      responseType: "stream",
+      timeout: 30000,
+    });
+
+    response.data.pipe(writer);
+
+    await new Promise((resolve, reject) => {
+      writer.on("finish", resolve);
+      writer.on("error", reject);
+    });
 
     await message.reply({
       body: `🎧 ${video.title}`,
-      attachment: fs.createReadStream(filePath)
+      attachment: fs.createReadStream(filePath),
     });
 
     await fs.unlink(filePath);
     await message.unsend(msg.messageID);
   } catch (err) {
-    console.error(err);
+    console.error("Error details:", err.response?.data || err.message || err);
     try {
       await message.unsend(msg.messageID);
     } catch {}
@@ -74,5 +88,5 @@ async function onCall({ message, args }) {
 
 export default {
   config,
-  onCall
+  onCall,
 };
