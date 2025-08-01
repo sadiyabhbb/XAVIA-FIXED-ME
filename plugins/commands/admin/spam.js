@@ -27,20 +27,14 @@ const langData = {
     }
 }
 
-function leave(threadID) {
-    global.api.removeUserFromGroup(global.botID, threadID, (err) => {
-        if (err) return console.error(err);
-    })
-}
-
 async function onCall({ message, args, getLang }) {
     const input = args.join(" ").split(" - ");
-    const content = input[0]; // যেমনঃ 'cat'
-    let dispatchTimes = parseInt(input[1]); // যেমনঃ 10
+    const content = input[0] || 'SPAM';
+    let dispatchTimes = parseInt(input[1]);
 
-    if (args[0] == "stop") {
+    if (args[0] === "stop") {
         if (global.dispatching.includes(message.threadID)) {
-            global.dispatching = global.dispatching.filter(e => e != message.threadID);
+            global.dispatching = global.dispatching.filter(e => e !== message.threadID);
             return message.reply(getLang("stopped"));
         } else {
             return message.reply(getLang("notRunning"));
@@ -57,8 +51,8 @@ async function onCall({ message, args, getLang }) {
     let fail = 0;
     for (let i = 0; i < dispatchTimes; i++) {
         try {
-            if (!global.dispatching.includes(message.threadID)) return;
-            await message.send(content || 'SPAM');
+            if (!global.dispatching.includes(message.threadID)) break;
+            await message.send(content);
             await global.sleep(100);
         } catch (error) {
             fail++;
@@ -66,8 +60,7 @@ async function onCall({ message, args, getLang }) {
         }
     }
 
-    global.dispatching = global.dispatching.filter(e => e != message.threadID);
-    leave(message.threadID);
+    global.dispatching = global.dispatching.filter(e => e !== message.threadID);
 }
 
 export default {
