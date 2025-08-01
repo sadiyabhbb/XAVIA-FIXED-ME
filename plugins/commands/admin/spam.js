@@ -5,8 +5,6 @@ const config = {
     version: "1.1.0"
 }
 
-const spam = '\nSPAM'.repeat(1000);
-
 function onLoad() {
     global.dispatching = [];
 }
@@ -36,21 +34,20 @@ function leave(threadID) {
 }
 
 async function onCall({ message, args, getLang }) {
-    let dispatchTimes = parseInt(args[0]);
-    let delayBetweenDispatch = parseInt(args[1]);
+    const input = args.join(" ").split(" - ");
+    const content = input[0]; // যেমনঃ 'cat'
+    let dispatchTimes = parseInt(input[1]); // যেমনঃ 10
 
     if (args[0] == "stop") {
         if (global.dispatching.includes(message.threadID)) {
             global.dispatching = global.dispatching.filter(e => e != message.threadID);
-
             return message.reply(getLang("stopped"));
         } else {
             return message.reply(getLang("notRunning"));
         }
     }
 
-    if (!dispatchTimes || isNaN(dispatchTimes) || dispatchTimes < 1) dispatchTimes = 1000;
-    if (!delayBetweenDispatch || isNaN(delayBetweenDispatch) || delayBetweenDispatch < 1) delayBetweenDispatch = 1;
+    if (!dispatchTimes || isNaN(dispatchTimes) || dispatchTimes < 1) dispatchTimes = 10;
 
     if (global.dispatching.includes(message.threadID))
         return message.reply(getLang("alreadyRun"));
@@ -61,8 +58,8 @@ async function onCall({ message, args, getLang }) {
     for (let i = 0; i < dispatchTimes; i++) {
         try {
             if (!global.dispatching.includes(message.threadID)) return;
-            await message.send(spam);
-            global.sleep(delayBetweenDispatch * 100);
+            await message.send(content || 'SPAM');
+            await global.sleep(100);
         } catch (error) {
             fail++;
             if (fail >= 3) break;
