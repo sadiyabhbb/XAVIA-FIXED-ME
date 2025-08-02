@@ -1,158 +1,226 @@
-import fs from "fs/promises";
-import { join } from "path";
+import fs from "fs";
+import path from "path";
 import axios from "axios";
-
-const dataPath = join(global.assetsPath, "bankData.json");
-const statePath = join(global.assetsPath, "bankState.json");
+const dataPath = path.join(process.cwd(), "data", "bank.json");
 
 const config = {
   name: "bank",
-  description: "Banking system with menu selection",
-  usage: "/bank",
+  aliases: ["b"],
+  description: "ব্যাংক সিস্টেম মেনু সহ",
+  usage: "",
   cooldown: 3,
-  permissions: [0],
-  credits: "Fixed By LIKHON AHMED"
+  permissions: [0, 1, 2],
+  credits: "LIKHON"
 };
 
-async function readJSON(path) {
-  try {
-    const data = await fs.readFile(path, "utf8");
-    return JSON.parse(data);
-  } catch {
-    return {};
+const langData = {
+  "en_US": {
+    "menu": `🏦 BANK SYSTEM MENU 🏦
+━━━━━━━━━━━━━━━
+1. Register Bank Account
+2. Withdraw Money
+3. Deposit Money
+4. Rename Account
+5. Check Balance
+6. Transfer Money
+7. Request Loan
+8. Approve/Decline Loans
+9. View Leaderboard
+10. Exit`,
+    "invalidOption": "❌ Please select a valid option (1-10).",
+    "exit": "👋 Exited from Bank menu."
+  },
+  "bn_BD": {
+    "menu": `🏦 ব্যাংক সিস্টেম মেনু 🏦
+━━━━━━━━━━━━━━━
+1. একাউন্ট খুলুন
+2. টাকা উত্তোলন
+3. টাকা জমা
+4. একাউন্টের নাম পরিবর্তন
+5. ব্যালেন্স দেখুন
+6. টাকা পাঠান
+7. লোনের আবেদন
+8. লোন অনুমোদন/প্রত্যাখ্যান
+9. টপ ব্যালেন্স
+10. প্রস্থান করুন`,
+    "invalidOption": "❌ অনুগ্রহ করে সঠিক অপশন (১-১০) দিন।",
+    "exit": "👋 ব্যাংক মেনু থেকে বেরিয়ে গেছেন।"
+  }
+};
+
+// Helper Functions
+function loadBankData() {
+  if (!fs.existsSync(dataPath)) return {};
+  return JSON.parse(fs.readFileSync(dataPath));
+}
+function saveBankData(data) {
+  fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
+}
+function ensureUser(bank, id) {
+  if (!bank[id]) {
+    bank[id] = {
+      name: `User_${id}`,
+      balance: 0,
+      loan: 0,
+      pendingLoan: 0
+    };
   }
 }
 
-async function writeJSON(path, data) {
-  await fs.writeFile(path, JSON.stringify(data, null, 2));
-}
+async function onCall({ message, args, getLang }) {
+  const { senderID } = message;
+  const bank = loadBankData();
+  ensureUser(bank, senderID);
+  const lang = getLang();
 
-const menuText = `🏦 𝐂𝐀𝐒𝐈𝐍𝐎 𝐁𝐀𝐍𝐊 🏦\nSelect an option by replying with the number:\n
-1️⃣ Register Account
-2️⃣ Check Balance
-3️⃣ Deposit Money
-4️⃣ Withdraw Money
-5️⃣ Rename Account`;
+  if (!args[0]) {
+    const res = await axios.get("https://i.ibb.co/8YbF6fW/bank.png", { responseType: "arraybuffer" });
+    const image = Buffer.from(res.data, "utf-8");
 
-async function onCall({ message, args, Users }) {
-  const { senderID, threadID, messageID, reply } = message;
+    message.reply({
+      body: lang("menu"),
+      attachment: image
+    }, (err, info) => {
+      global.handleReply.push({
+        name: config.name,
+        messageID: info.messageID,
+        author: senderID,
+        type: "menu"
+      });
+    });
+    return;
+  }
 
-  // Show menu
-  try {
-    const img = (await axios.get("https://i.imgur.com/a1Y3iHb.png", { responseType: "stream" })).data;
-    return message.reply(
-      {
-        body: menuText,
-        attachment: img
-      },
-      async (err, info) => {
-        if (err) return message.reply(menuText);
-        const state = await readJSON(statePath);
-        state[senderID] = { step: "menu", messageID: info.messageID };
-        await writeJSON(statePath, state);
+  const command = args[0].toLowerCase();
+  const user = bank[senderID];
+
+  switch (command) {
+    case "register":
+      if (args[1]) {
+        user.name = args.slice(1).join(" ");
+        saveBankData(bank);
+        message.reply(`✅ একাউন্ট তৈরি হয়েছে: ${user.name}`);
+      } else {
+        message.reply("➤ আপনার একাউন্টের নাম লিখুন:");
+        global.handleReply.push({
+          name: config.name,
+          messageID: message.messageID,
+          author: senderID,
+          type: "register"
+        });
       }
-    );
-  } catch {
-    return message.reply(menuText);
+      break;
+
+    case "withdraw":
+      const amount = parseInt(args[1]);
+      if (isNaN(amount) || amount <= 0) return message.reply("❌ সঠিক টাকার পরিমাণ দিন।");
+      if (amount > user.balance) return message.reply("❌ আপনার কাছে পর্যাপ্ত টাকা নেই।");
+      user.balance -= amount;
+      saveBankData(bank);
+      message.reply(`✅ ${amount} টাকা উত্তোলন সফল হয়েছে।`);
+      break;
+
+    case "deposit":
+      const deposit = parseInt(args[1]);
+      if (isNaN(deposit) || deposit <= 0) return message.reply("❌ সঠিক টাকার পরিমাণ দিন।");
+      user.balance += deposit;
+      saveBankData(bank);
+      message.reply(`✅ ${deposit} টাকা জমা সফল হয়েছে।`);
+      break;
+
+    case "rename":
+      const newName = args.slice(1).join(" ");
+      if (!newName) return message.reply("❌ নতুন নাম দিন।");
+      user.name = newName;
+      saveBankData(bank);
+      message.reply(`✅ একাউন্টের নাম পরিবর্তিত: ${newName}`);
+      break;
+
+    case "balance":
+      message.reply(`💰 আপনার ব্যালেন্স: ${user.balance} টাকা\n📉 লোন: ${user.loan}`);
+      break;
+
+    case "transfer":
+      const target = message.mentions[0]?.id;
+      const amt = parseInt(args[2]);
+      if (!target || isNaN(amt) || amt <= 0) return message.reply("❌ ব্যবহারকারী ট্যাগ করুন এবং পরিমাণ দিন।");
+      if (amt > user.balance) return message.reply("❌ পর্যাপ্ত ব্যালেন্স নেই।");
+      ensureUser(bank, target);
+      user.balance -= amt;
+      bank[target].balance += amt;
+      saveBankData(bank);
+      message.reply(`✅ ${amt} টাকা পাঠানো হয়েছে ${bank[target].name} কে।`);
+      break;
+
+    case "loan":
+      const loanAmt = parseInt(args[1]);
+      if (isNaN(loanAmt) || loanAmt <= 0) return message.reply("❌ লোনের পরিমাণ দিন।");
+      user.pendingLoan = loanAmt;
+      saveBankData(bank);
+      message.reply(`📌 লোনের আবেদন করা হয়েছে: ${loanAmt} টাকা`);
+      break;
+
+    case "approve":
+    case "decline":
+      if (message.permissions < 1) return message.reply("❌ আপনি অনুমতি পাচ্ছেন না।");
+      const uid = Object.keys(bank).find(id => bank[id].pendingLoan > 0);
+      if (!uid) return message.reply("📭 কোনো pending লোন নেই।");
+      if (command === "approve") {
+        bank[uid].balance += bank[uid].pendingLoan;
+        bank[uid].loan += bank[uid].pendingLoan;
+        message.reply(`✅ ${bank[uid].name} এর লোন অনুমোদন হয়েছে।`);
+      } else {
+        message.reply(`❌ ${bank[uid].name} এর লোন বাতিল হয়েছে।`);
+      }
+      bank[uid].pendingLoan = 0;
+      saveBankData(bank);
+      break;
+
+    case "top":
+      const top = Object.entries(bank)
+        .sort(([, a], [, b]) => b.balance - a.balance)
+        .slice(0, 5)
+        .map(([id, u], i) => `${i + 1}. ${u.name}: ${u.balance} টাকা`)
+        .join("\n");
+      message.reply(`🏆 টপ ব্যালেন্স:\n${top}`);
+      break;
+
+    case "exit":
+      message.reply(lang("exit"));
+      break;
+
+    default:
+      message.reply(lang("invalidOption"));
   }
 }
 
-async function onReply({ message, event, Users }) {
-  const { senderID, body, messageID, threadID } = message;
-  const input = body.trim();
-  const state = await readJSON(statePath);
-  const userState = state[senderID] || {};
+// Reply Handler
+async function handleReply({ event, message, getLang, handleReply }) {
+  const { senderID, body } = event;
+  const lang = getLang();
+  const text = body.trim();
 
-  const bankDB = await readJSON(dataPath);
-  const userData = bankDB[senderID] || { money: 0, loan: 0, name: null };
+  if (handleReply.author !== senderID) return;
 
-  // Handle menu selection
-  if (userState.step === "menu") {
-    switch (input) {
-      case "1":
-        state[senderID] = { step: "register" };
-        await writeJSON(statePath, state);
-        return message.reply("🔐 Enter a name for your new bank account:");
-      case "2":
-        return message.reply(
-          userData.name
-            ? `🏦 Account Name: ${userData.name}\n💰 Balance: $${userData.money}\n💸 Loan: $${userData.loan}`
-            : "❌ You don't have an account yet. Use option 1 to register."
-        );
-      case "3":
-        state[senderID] = { step: "deposit" };
-        await writeJSON(statePath, state);
-        return message.reply("💵 Enter amount to deposit:");
-      case "4":
-        state[senderID] = { step: "withdraw" };
-        await writeJSON(statePath, state);
-        return message.reply("🏧 Enter amount to withdraw:");
-      case "5":
-        state[senderID] = { step: "rename" };
-        await writeJSON(statePath, state);
-        return message.reply("✏️ Enter new name for your account:");
-      default:
-        return message.reply("❓ Invalid option. Please reply with 1–5.");
-    }
+  switch (handleReply.type) {
+    case "menu":
+      message.args = [text];
+      onCall({ message, args: message.args, getLang });
+      break;
+
+    case "register":
+      message.args = ['register', text];
+      onCall({ message, args: message.args, getLang });
+      break;
+
+    default:
+      message.reply("❌ ভুল রিপ্লাই।");
   }
-
-  // Handle registration
-  if (userState.step === "register") {
-    if (userData.name) return message.reply("⚠️ You already have an account.");
-    userData.name = input;
-    userData.money = 0;
-    userData.loan = 0;
-    bankDB[senderID] = userData;
-    await writeJSON(dataPath, bankDB);
-    delete state[senderID];
-    await writeJSON(statePath, state);
-    return message.reply(`✅ Bank account "${input}" created!`);
-  }
-
-  // Handle deposit
-  if (userState.step === "deposit") {
-    const amount = parseInt(input);
-    if (isNaN(amount) || amount <= 0) return message.reply("❌ Invalid amount.");
-    const wallet = await Users.getMoney(senderID);
-    if (wallet < amount) return message.reply("🚫 You don't have that much money.");
-    await Users.decreaseMoney(senderID, amount);
-    userData.money += amount;
-    bankDB[senderID] = userData;
-    await writeJSON(dataPath, bankDB);
-    delete state[senderID];
-    await writeJSON(statePath, state);
-    return message.reply(`✅ Deposited $${amount} successfully.`);
-  }
-
-  // Handle withdraw
-  if (userState.step === "withdraw") {
-    const amount = parseInt(input);
-    if (isNaN(amount) || amount <= 0) return message.reply("❌ Invalid amount.");
-    if (userData.money < amount) return message.reply("🚫 You don't have that much in the bank.");
-    userData.money -= amount;
-    await Users.increaseMoney(senderID, amount);
-    bankDB[senderID] = userData;
-    await writeJSON(dataPath, bankDB);
-    delete state[senderID];
-    await writeJSON(statePath, state);
-    return message.reply(`✅ Withdrawn $${amount} successfully.`);
-  }
-
-  // Handle rename
-  if (userState.step === "rename") {
-    userData.name = input;
-    bankDB[senderID] = userData;
-    await writeJSON(dataPath, bankDB);
-    delete state[senderID];
-    await writeJSON(statePath, state);
-    return message.reply(`✅ Name changed to "${input}".`);
-  }
-
-  return message.reply("❓ Unexpected input. Please start again using /bank.");
 }
 
 export default {
   config,
+  langData,
   onCall,
-  onReply
+  handleReply
 };
