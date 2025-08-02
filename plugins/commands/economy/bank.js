@@ -1,125 +1,158 @@
-import axios from 'axios';
-import { join } from 'path';
-import fs from 'fs/promises';
-import Decimal from 'decimal.js';
+import fs from "fs/promises";
+import { join } from "path";
+import axios from "axios";
 
-const PATH = join(global.assetsPath, 'bankOwner.json');
+const dataPath = join(global.assetsPath, "bankData.json");
+const statePath = join(global.assetsPath, "bankState.json");
 
 const config = {
-  name: 'bank',
-  aliases: ["bk", "b", "banking"],
-  description: 'Bank Online',
-  usage: '<Use command to show menu>',
+  name: "bank",
+  description: "Banking system with menu selection",
+  usage: "/bank",
   cooldown: 3,
-  permissions: [0, 1, 2],
-  credits: 'Dymyrius (Updated by LikHon)',
-  extra: {}
+  permissions: [0],
+  credits: "Fixed By LIKHON AHMED"
 };
 
-const langData = {
-  "en_US": {
-    "no.account": "❌ You don't have a bank account yet!",
-    "have.account": "❗ You already have an account!",
-    "error": "⚠️ Error, please try again!",
-    "no.name": "📛 Please enter a bank name.",
-    "success": "✅ Successfully done!",
-    "no.money": "🚫 You don't have enough money!",
-    "menu": "🏦【𝐂𝐀𝐒𝐈𝐍𝐎 𝐁𝐀𝐍𝐊】🏦\nExperience modern banking.\n\n𝗢𝗽𝘁𝗶𝗼𝗻𝘀:\n1. register <bankName>\n2. withdraw <amount>\n3. deposit <amount>\n4. rename <newName>\n5. check\n6. loan <amount>\n7. top <number>"
+async function readJSON(path) {
+  try {
+    const data = await fs.readFile(path, "utf8");
+    return JSON.parse(data);
+  } catch {
+    return {};
   }
-};
+}
 
-async function onCall({ message, args, getLang, Users }) {
-  const senderID = message.senderID;
-  const sub = args[0]?.toLowerCase();
+async function writeJSON(path, data) {
+  await fs.writeFile(path, JSON.stringify(data, null, 2));
+}
 
-  // 1. Show menu if no subcommand
-  if (!sub) {
-    try {
-      const image = (await axios.get("https://i.imgur.com/a1Y3iHb.png", { responseType: "stream" })).data;
-      return message.reply({ body: getLang("menu"), attachment: image });
-    } catch {
-      return message.reply(getLang("menu"));
+const menuText = `🏦 𝐂𝐀𝐒𝐈𝐍𝐎 𝐁𝐀𝐍𝐊 🏦\nSelect an option by replying with the number:\n
+1️⃣ Register Account
+2️⃣ Check Balance
+3️⃣ Deposit Money
+4️⃣ Withdraw Money
+5️⃣ Rename Account`;
+
+async function onCall({ message, args, Users }) {
+  const { senderID, threadID, messageID, reply } = message;
+
+  // Show menu
+  try {
+    const img = (await axios.get("https://i.imgur.com/a1Y3iHb.png", { responseType: "stream" })).data;
+    return message.reply(
+      {
+        body: menuText,
+        attachment: img
+      },
+      async (err, info) => {
+        if (err) return message.reply(menuText);
+        const state = await readJSON(statePath);
+        state[senderID] = { step: "menu", messageID: info.messageID };
+        await writeJSON(statePath, state);
+      }
+    );
+  } catch {
+    return message.reply(menuText);
+  }
+}
+
+async function onReply({ message, event, Users }) {
+  const { senderID, body, messageID, threadID } = message;
+  const input = body.trim();
+  const state = await readJSON(statePath);
+  const userState = state[senderID] || {};
+
+  const bankDB = await readJSON(dataPath);
+  const userData = bankDB[senderID] || { money: 0, loan: 0, name: null };
+
+  // Handle menu selection
+  if (userState.step === "menu") {
+    switch (input) {
+      case "1":
+        state[senderID] = { step: "register" };
+        await writeJSON(statePath, state);
+        return message.reply("🔐 Enter a name for your new bank account:");
+      case "2":
+        return message.reply(
+          userData.name
+            ? `🏦 Account Name: ${userData.name}\n💰 Balance: $${userData.money}\n💸 Loan: $${userData.loan}`
+            : "❌ You don't have an account yet. Use option 1 to register."
+        );
+      case "3":
+        state[senderID] = { step: "deposit" };
+        await writeJSON(statePath, state);
+        return message.reply("💵 Enter amount to deposit:");
+      case "4":
+        state[senderID] = { step: "withdraw" };
+        await writeJSON(statePath, state);
+        return message.reply("🏧 Enter amount to withdraw:");
+      case "5":
+        state[senderID] = { step: "rename" };
+        await writeJSON(statePath, state);
+        return message.reply("✏️ Enter new name for your account:");
+      default:
+        return message.reply("❓ Invalid option. Please reply with 1–5.");
     }
   }
 
-  // 2. Load DB
-  let bankData = {};
-  try {
-    const raw = await fs.readFile(PATH, 'utf8');
-    bankData = JSON.parse(raw);
-  } catch {}
-
-  const saveData = () => fs.writeFile(PATH, JSON.stringify(bankData, null, 2));
-  const userBank = bankData[senderID];
-
-  // 3. Register
-  if (sub === "register" || sub === "r") {
-    if (userBank) return message.reply(getLang("have.account"));
-    const name = args.slice(1).join(" ");
-    if (!name) return message.reply(getLang("no.name"));
-    bankData[senderID] = { name, money: 0, loan: 0 };
-    await saveData();
-    return message.reply(getLang("success"));
+  // Handle registration
+  if (userState.step === "register") {
+    if (userData.name) return message.reply("⚠️ You already have an account.");
+    userData.name = input;
+    userData.money = 0;
+    userData.loan = 0;
+    bankDB[senderID] = userData;
+    await writeJSON(dataPath, bankDB);
+    delete state[senderID];
+    await writeJSON(statePath, state);
+    return message.reply(`✅ Bank account "${input}" created!`);
   }
 
-  // 4. Check balance
-  if (sub === "check") {
-    if (!userBank) return message.reply(getLang("no.account"));
-    return message.reply(
-      `🏦 Account Info:\n👤 Name: ${userBank.name}\n💰 Bank Balance: $${userBank.money}\n💸 Loan: $${userBank.loan}`
-    );
-  }
-
-  // 5. Deposit
-  if (sub === "deposit") {
-    if (!userBank) return message.reply(getLang("no.account"));
-    const amount = parseInt(args[1]);
-    if (isNaN(amount) || amount <= 0) return message.reply("⚠️ Invalid deposit amount.");
+  // Handle deposit
+  if (userState.step === "deposit") {
+    const amount = parseInt(input);
+    if (isNaN(amount) || amount <= 0) return message.reply("❌ Invalid amount.");
     const wallet = await Users.getMoney(senderID);
-    if (wallet < amount) return message.reply(getLang("no.money"));
+    if (wallet < amount) return message.reply("🚫 You don't have that much money.");
     await Users.decreaseMoney(senderID, amount);
-    userBank.money += amount;
-    await saveData();
-    return message.reply(`✅ Deposited $${amount} to your bank.`);
+    userData.money += amount;
+    bankDB[senderID] = userData;
+    await writeJSON(dataPath, bankDB);
+    delete state[senderID];
+    await writeJSON(statePath, state);
+    return message.reply(`✅ Deposited $${amount} successfully.`);
   }
 
-  // 6. Withdraw
-  if (sub === "withdraw") {
-    if (!userBank) return message.reply(getLang("no.account"));
-    const amount = parseInt(args[1]);
-    if (isNaN(amount) || amount <= 0) return message.reply("⚠️ Invalid withdrawal amount.");
-    if (userBank.money < amount) return message.reply(getLang("no.money"));
-    userBank.money -= amount;
+  // Handle withdraw
+  if (userState.step === "withdraw") {
+    const amount = parseInt(input);
+    if (isNaN(amount) || amount <= 0) return message.reply("❌ Invalid amount.");
+    if (userData.money < amount) return message.reply("🚫 You don't have that much in the bank.");
+    userData.money -= amount;
     await Users.increaseMoney(senderID, amount);
-    await saveData();
-    return message.reply(`✅ Withdrew $${amount} from your bank.`);
+    bankDB[senderID] = userData;
+    await writeJSON(dataPath, bankDB);
+    delete state[senderID];
+    await writeJSON(statePath, state);
+    return message.reply(`✅ Withdrawn $${amount} successfully.`);
   }
 
-  // 7. Rename
-  if (sub === "rename") {
-    if (!userBank) return message.reply(getLang("no.account"));
-    const newName = args.slice(1).join(" ");
-    if (!newName) return message.reply(getLang("no.name"));
-    userBank.name = newName;
-    await saveData();
-    return message.reply("✅ Name updated successfully!");
+  // Handle rename
+  if (userState.step === "rename") {
+    userData.name = input;
+    bankDB[senderID] = userData;
+    await writeJSON(dataPath, bankDB);
+    delete state[senderID];
+    await writeJSON(statePath, state);
+    return message.reply(`✅ Name changed to "${input}".`);
   }
 
-  // 8. Top list
-  if (sub === "top") {
-    const limit = parseInt(args[1]) || 5;
-    const topUsers = Object.entries(bankData)
-      .sort(([, a], [, b]) => b.money - a.money)
-      .slice(0, limit)
-      .map(([uid, data], i) => `${i + 1}. ${data.name} — $${data.money}`);
-    return message.reply(`🏆 Top ${limit} Richest Accounts:\n\n${topUsers.join("\n")}`);
-  }
-
-  return message.reply("❓ Invalid command. Use `/bank` to see available options.");
+  return message.reply("❓ Unexpected input. Please start again using /bank.");
 }
 
 export default {
   config,
-  langData,
-  onCall
+  onCall,
+  onReply
 };
