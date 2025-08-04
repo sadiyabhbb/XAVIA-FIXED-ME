@@ -10,11 +10,11 @@ const DOMAINS = [
 
 const config = {
   name: "tm",
-  description: "Generate a temp mail and wait for Facebook OTP",
+  description: "Generate temp mail and auto-check for Facebook OTP",
   usage: "/tm",
   cooldown: 5,
   permissions: [0],
-  credits: "ChatGPT + Likhon"
+  credits: "ChatGPT"
 };
 
 function generateRandomUsername(length = 8) {
@@ -35,10 +35,19 @@ async function onCall({ message, api, event }) {
 
     await message.reply(`✅ আপনার অস্থায়ী মেইল:\n\`\`\`\n${email}\n\`\`\`\n\n📨 এখন Facebook OTP আসলে এখানে অটো আসবে!`);
 
-    // Watch for mail every 10s
+    let attempt = 0;
+
     const interval = setInterval(async () => {
+      attempt++;
+      if (attempt > 10) {
+        clearInterval(interval);
+        return api.sendMessage("⏰ টাইম শেষ, OTP আসেনি। আবার চেষ্টা করুন।", threadID);
+      }
+
       try {
-        const res = await axios.get(`https://hotmail999.com/api/get_mail.php?email=${encodeURIComponent(email)}`);
+        const url = `https://hotmail999.com/api/get_mail.php?email=${encodeURIComponent(email)}`;
+        console.log("Checking mail at:", url);
+        const res = await axios.get(url);
         const data = res.data;
 
         if (data?.status && data?.data?.length > 0) {
@@ -51,15 +60,16 @@ async function onCall({ message, api, event }) {
             `📨 Message:\n\`\`\`\n${mail.subject || 'No Subject'}\n\`\`\``;
 
           api.sendMessage(content, threadID);
-          clearInterval(interval); // Stop once received
+          clearInterval(interval);
         }
       } catch (err) {
-        console.log("Mail check error:", err.message);
+        console.error("❌ Interval Mail Check Error:", err.message);
       }
     }, 10000);
+
   } catch (error) {
-    console.log("❌ TM command error:", error.message);
-    return message.reply("❌ কিছু ভুল হয়েছে। দয়া করে আবার চেষ্টা করুন।");
+    console.error("❌ TM COMMAND ERROR:", error.message);
+    return message.reply(`❌ কিছু ভুল হয়েছে:\n${error.message}`);
   }
 }
 
