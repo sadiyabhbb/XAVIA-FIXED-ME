@@ -5,13 +5,14 @@ const config = {
   description: "Generate accurate 2FA code for Facebook using secret.",
   usage: "/2fa <secret>",
   cooldown: 3,
+  author: "LIKHON AHMED",
   permissions: [0],
-  credits: "ChatGPT"
+  credits: "LIKHONAHMED009"
 };
 
 export async function onCall({ message, args }) {
   if (args.length < 1) {
-    return message.reply("❌ ব্যবহারঃ /2fa <secret>");
+    return message.reply("❌ use /2fa <secret>");
   }
 
   // 1. Join args (remove spaces), normalize to base32 format
@@ -30,9 +31,9 @@ export async function onCall({ message, args }) {
       time: currentTime
     });
 
-    return message.reply(`✅ আপনার Facebook 2FA কোড: ${token}`);
+    return message.reply(` ${token}`);
   } catch (e) {
-    return message.reply("❌ সিক্রেটটি সঠিক নয় বা কোড জেনারেট করতে সমস্যা হয়েছে:\n" + e.message);
+    return message.reply("❌ worng code:\n" + e.message);
   }
 }
 
