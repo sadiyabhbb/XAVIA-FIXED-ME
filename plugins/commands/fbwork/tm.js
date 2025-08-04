@@ -26,9 +26,9 @@ function generateRandomUsername(length = 8) {
   return result;
 }
 
-async function onCall({ message, api, event }) {
+async function onCall({ message, api }) {
   try {
-    const threadID = event.threadID;
+    const threadID = message.threadID;
     const username = generateRandomUsername();
     const domain = DOMAINS[Math.floor(Math.random() * DOMAINS.length)];
     const email = `${username}${domain}`;
@@ -46,7 +46,6 @@ async function onCall({ message, api, event }) {
 
       try {
         const url = `https://hotmail999.com/api/get_mail.php?email=${encodeURIComponent(email)}`;
-        console.log("Checking mail at:", url);
         const res = await axios.get(url);
         const data = res.data;
 
