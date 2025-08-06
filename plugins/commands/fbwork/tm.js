@@ -1,52 +1,52 @@
-import axios from "axios";
+import axios from 'axios';
 
 const config = {
-  name: "tm",
-  description: "Check temporary email for verification code",
-  usage: "<email@example.com>",
-  cooldown: 3,
-  permissions: [2],
-  credits: "hotmail999.com API + Modified by You"
+    name: "tm",
+    description: "Check temporary mail via hotmail999.com API",
+    usage: "<email@example.com>",
+    cooldown: 5,
+    permissions: [2], // group admin
+    credits: "LIKHON AHMED"
 };
 
-export async function onCall({ message, args }) {
-  const email = args[0];
+export async function onCall({ message, args, userPermissions }) {
+    const isGroupAdmin = userPermissions.includes(2);
+    if (!isGroupAdmin) return message.reply("❌ If you do not have adequate permission to use this command.");
 
-  if (!email || !email.includes("@")) {
-    return message.reply("⚠️ Please provide a valid email address.\nExample:\n/tm user@hotmail999.com");
-  }
-
-  try {
-    const response = await axios.get(`https://hotmail999.com/api/get_mail.php?email=${email}`);
-    const inbox = response.data;
-
-    if (!inbox || inbox.length === 0) {
-      return message.reply("📭 No emails found in the inbox. Please try again later.");
+    const email = args[0];
+    if (!email || !email.includes('@')) {
+        return message.reply("⚠️ Give the correct mail /tm er@example.com");
     }
 
-    const latest = inbox[0];
+    try {
+        const res = await axios.get(`https://hotmail999.com/api/get_mail.php`, {
+            params: { email }
+        });
 
-    const from = latest.from;
-    const subject = latest.subject;
-    const date = latest.date;
+        const data = res.data;
 
-    // Extract code from subject (any 4 to 8 digit number)
-    const match = subject.match(/(\d{4,8})/);
-    const code = match ? match[1] : null;
+        if (!data.status || !data.data || data.data.length === 0) {
+            return message.reply("📭 No email was found");
+        }
 
-    return message.reply(
-      `📥 *New Mail*\n` +
-      `👤 From: \`${from}\`\n` +
-      `📝 Subject: *"${subject}"*\n` +
-      `📅 Time: ${date}\n` +
-      (code ? `🔐 Code: *${code}*\n\n✅ Use this code to confirm your Facebook account.` : "❌ No verification code found in the subject.")
-    );
-  } catch (e) {
-    return message.reply("❌ Failed to retrieve email. Please check the email address or try again later.");
-  }
+        const latestMail = data.data[0];
+        const { subject, from_field, date, code } = latestMail;
+
+        return message.reply(
+            "📥 New Email:\n" +
+            `👤 Sender: ${from_field}\n` +
+            `📝 Subject: ${subject}\n` +
+            `📅 Time: ${date}\n` +
+            (code ? `🔐 Code: ${code}` : "❌ Not code received")
+        );
+
+    } catch (error) {
+        console.error(error);
+        return message.reply("❌ Faceted Code error. Please Try Again Letter.");
+    }
 }
 
 export default {
-  config,
-  onCall
+    config,
+    onCall
 };
