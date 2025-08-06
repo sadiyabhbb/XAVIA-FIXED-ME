@@ -1,52 +1,52 @@
-import axios from 'axios';
+import axios from "axios";
 
 const config = {
-    name: "tm",
-    description: "Check temporary mail via hotmail999.com API",
-    usage: "<email@example.com>",
-    cooldown: 5,
-    permissions: [2], // group admin
-    credits: "hotmail999.com | Converted by Xavia"
+  name: "tm",
+  description: "Check temporary email for verification code",
+  usage: "<email@example.com>",
+  cooldown: 3,
+  permissions: [2],
+  credits: "hotmail999.com API + Modified by You"
 };
 
-export async function onCall({ message, args, userPermissions }) {
-    const isGroupAdmin = userPermissions.includes(2);
-    if (!isGroupAdmin) return message.reply("❌ আপনার পর্যাপ্ত অনুমতি নেই এই কমান্ডটি ব্যবহার করার জন্য।");
+export async function onCall({ message, args }) {
+  const email = args[0];
 
-    const email = args[0];
-    if (!email || !email.includes('@')) {
-        return message.reply("⚠️ সঠিক ইমেইল অ্যাড্রেস দিন।\nউদাহরণ: /tm user@example.com");
+  if (!email || !email.includes("@")) {
+    return message.reply("⚠️ Please provide a valid email address.\nExample:\n/tm user@hotmail999.com");
+  }
+
+  try {
+    const response = await axios.get(`https://hotmail999.com/api/get_mail.php?email=${email}`);
+    const inbox = response.data;
+
+    if (!inbox || inbox.length === 0) {
+      return message.reply("📭 No emails found in the inbox. Please try again later.");
     }
 
-    try {
-        const res = await axios.get(`https://hotmail999.com/api/get_mail.php`, {
-            params: { email }
-        });
+    const latest = inbox[0];
 
-        const data = res.data;
+    const from = latest.from;
+    const subject = latest.subject;
+    const date = latest.date;
 
-        if (!data.status || !data.data || data.data.length === 0) {
-            return message.reply("📭 কোনো মেইল পাওয়া যায়নি বা ইনবক্স খালি।");
-        }
+    // Extract code from subject (any 4 to 8 digit number)
+    const match = subject.match(/(\d{4,8})/);
+    const code = match ? match[1] : null;
 
-        const latestMail = data.data[0];
-        const { subject, from_field, date, code } = latestMail;
-
-        return message.reply(
-            "📥 সর্বশেষ মেইল:\n" +
-            `👤 প্রেরক: ${from_field}\n` +
-            `📝 বিষয়: ${subject}\n` +
-            `📅 সময়: ${date}\n` +
-            (code ? `🔐 কোড: ${code}` : "❌ কোড পাওয়া যায়নি")
-        );
-
-    } catch (error) {
-        console.error(error);
-        return message.reply("❌ মেইল চেক করতে গিয়ে কোনো সমস্যা হয়েছে। আবার চেষ্টা করুন।");
-    }
+    return message.reply(
+      `📥 *New Mail*\n` +
+      `👤 From: \`${from}\`\n` +
+      `📝 Subject: *"${subject}"*\n` +
+      `📅 Time: ${date}\n` +
+      (code ? `🔐 Code: *${code}*\n\n✅ Use this code to confirm your Facebook account.` : "❌ No verification code found in the subject.")
+    );
+  } catch (e) {
+    return message.reply("❌ Failed to retrieve email. Please check the email address or try again later.");
+  }
 }
 
 export default {
-    config,
-    onCall
+  config,
+  onCall
 };
