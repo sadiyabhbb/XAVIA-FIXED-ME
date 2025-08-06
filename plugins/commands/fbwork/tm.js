@@ -1,78 +1,52 @@
-import axios from "axios";
-
-const DOMAINS = [
-  '@iicloud.com.vn',
-  '@mail10s.top',
-  '@hotmail999.com',
-  '@mailshopee.io.vn',
-  '@gmail.com'
-];
+import axios from 'axios';
 
 const config = {
-  name: "tm",
-  description: "Generate temp mail and auto-check for Facebook OTP",
-  usage: "/tm",
-  cooldown: 5,
-  permissions: [0],
-  credits: "ChatGPT"
+    name: "tm",
+    description: "Check temporary mail via hotmail999.com API",
+    usage: "<email@example.com>",
+    cooldown: 5,
+    permissions: [2], // group admin
+    credits: "hotmail999.com | Converted by Xavia"
 };
 
-function generateRandomUsername(length = 8) {
-  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-  let result = "";
-  for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
-}
+export async function onCall({ message, args, userPermissions }) {
+    const isGroupAdmin = userPermissions.includes(2);
+    if (!isGroupAdmin) return message.reply("❌ আপনার পর্যাপ্ত অনুমতি নেই এই কমান্ডটি ব্যবহার করার জন্য।");
 
-async function onCall({ message, api }) {
-  try {
-    const threadID = message.threadID;
-    const username = generateRandomUsername();
-    const domain = DOMAINS[Math.floor(Math.random() * DOMAINS.length)];
-    const email = `${username}${domain}`;
+    const email = args[0];
+    if (!email || !email.includes('@')) {
+        return message.reply("⚠️ সঠিক ইমেইল অ্যাড্রেস দিন।\nউদাহরণ: /tm user@example.com");
+    }
 
-    await message.reply(`✅ আপনার অস্থায়ী মেইল:\n\`\`\`\n${email}\n\`\`\`\n\n📨 এখন Facebook OTP আসলে এখানে অটো আসবে!`);
+    try {
+        const res = await axios.get(`https://hotmail999.com/api/get_mail.php`, {
+            params: { email }
+        });
 
-    let attempt = 0;
-
-    const interval = setInterval(async () => {
-      attempt++;
-      if (attempt > 10) {
-        clearInterval(interval);
-        return api.sendMessage("⏰ টাইম শেষ, OTP আসেনি। আবার চেষ্টা করুন।", threadID);
-      }
-
-      try {
-        const url = `https://hotmail999.com/api/get_mail.php?email=${encodeURIComponent(email)}`;
-        const res = await axios.get(url);
         const data = res.data;
 
-        if (data?.status && data?.data?.length > 0) {
-          const mail = data.data[0];
-          const content = `🔔 *𝐅𝐀𝐂𝐄𝐁𝐎𝐎𝐊 OTP Received!*\n\n` +
-            `📧 Mail: \`${email}\`\n` +
-            `🕒 Time: ${mail.date || 'Unknown'}\n` +
-            `✉️ From: ${mail.from_field || 'Unknown'}\n` +
-            `🔑 OTP: \`${mail.code || 'Not Found'}\`\n\n` +
-            `📨 Message:\n\`\`\`\n${mail.subject || 'No Subject'}\n\`\`\``;
-
-          api.sendMessage(content, threadID);
-          clearInterval(interval);
+        if (!data.status || !data.data || data.data.length === 0) {
+            return message.reply("📭 কোনো মেইল পাওয়া যায়নি বা ইনবক্স খালি।");
         }
-      } catch (err) {
-        console.error("❌ Interval Mail Check Error:", err.message);
-      }
-    }, 10000);
 
-  } catch (error) {
-    console.error("❌ TM COMMAND ERROR:", error.message);
-    return message.reply(`❌ কিছু ভুল হয়েছে:\n${error.message}`);
-  }
+        const latestMail = data.data[0];
+        const { subject, from_field, date, code } = latestMail;
+
+        return message.reply(
+            "📥 সর্বশেষ মেইল:\n" +
+            `👤 প্রেরক: ${from_field}\n` +
+            `📝 বিষয়: ${subject}\n` +
+            `📅 সময়: ${date}\n` +
+            (code ? `🔐 কোড: ${code}` : "❌ কোড পাওয়া যায়নি")
+        );
+
+    } catch (error) {
+        console.error(error);
+        return message.reply("❌ মেইল চেক করতে গিয়ে কোনো সমস্যা হয়েছে। আবার চেষ্টা করুন।");
+    }
 }
 
 export default {
-  config,
-  onCall
+    config,
+    onCall
 };
