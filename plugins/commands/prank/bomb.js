@@ -62,7 +62,7 @@ export async function onCall({ message, userPermissions, args }) {
             author: "LIKHON AHMED"
         };
 
-        message.reply("```json\n" + JSON.stringify(response, null, 2) + "\n```");
+        message.reply(JSON.stringify(response, null, 2));
     } catch (err) {
         message.reply(`❌ Error calling API: ${err.message}`);
     }
